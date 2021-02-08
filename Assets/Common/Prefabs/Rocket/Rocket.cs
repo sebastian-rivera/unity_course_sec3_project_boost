@@ -1,15 +1,33 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class Rocket : MonoBehaviour {
+
+	enum PlayerState {
+		Alive,
+		Dying,
+		Transcending
+	}
+
 	Rigidbody _rigidBody;
 	AudioSource _audioSource;
-	[SerializeField]float maxThrustSpeed = 2000f;
-	[SerializeField]float rotationForce = 150f;
-	[SerializeField]float thrustAcceleration = 10f;
-	[SerializeField]float fixedThrust = 800f;
+	[SerializeField] float rotationForce = 150f;
+	[SerializeField] float thrustForce = 800f;
+	[SerializeField] AudioClip mainEngineAudio;
+	[SerializeField] AudioClip deathAudio;
+	[SerializeField] AudioClip winAudio;	
+	
+	[SerializeField] ParticleSystem mainEngineParticle;
+	[SerializeField] ParticleSystem deathParticle;
+	[SerializeField] ParticleSystem winParticle;
+
+	
+
+	[SerializeField] float nextLevelDelay = 1f;
+	PlayerState playerState = PlayerState.Alive;
 
 	float deltaAccInterval = 0.05f;
 	float deltaShutoffInterval = 0.01f;
@@ -21,31 +39,52 @@ public class Rocket : MonoBehaviour {
 	// Start is called before the first frame update
 	void Start() {
 		_rigidBody = GetComponent<Rigidbody>();
-		//_rigidBody.constraints = RigidbodyConstraints.FreezeRotation;
 		_audioSource = GetComponent<AudioSource>();
-
-
 		debugText = GameObject.FindGameObjectWithTag("DebugText").GetComponent<Text>();
 		
 	}
 
 	private void OnCollisionEnter(Collision collision) {
+
+		if (playerState != PlayerState.Alive) return;
+
 		switch (collision.gameObject.tag) {
 
 			case "Friendly":
-				//doNothing
-				print("You are safe!");
-				break;			
+				//doNothing				
+				break;
+			case "Finish":
+				playerState = PlayerState.Transcending;
+				_audioSource.Stop();
+   				_audioSource.PlayOneShot(winAudio);
+				Invoke(nameof(LoadNextScene), nextLevelDelay);				
+				break;
 			default:
-				print("You are dead!");
+				playerState = PlayerState.Dying;				
+				_audioSource.Stop();
+  				_audioSource.PlayOneShot(deathAudio);
+				Invoke(nameof(LoadFirstScene), nextLevelDelay);
 				break;
 		}
 	}
 
 	// Update is called once per frame
 	void Update() {
-		Thrust();
-		Rotate();
+
+		if(playerState == PlayerState.Alive) {
+			Thrust();
+			Rotate();
+		}
+
+		
+	}
+
+	private void LoadFirstScene() {
+		SceneManager.LoadScene(0);
+	}
+
+	private void LoadNextScene() {
+		SceneManager.LoadScene(1);
 	}
 
 	private void Rotate() {
@@ -62,92 +101,22 @@ public class Rocket : MonoBehaviour {
 		
 	}
 
-	private void Decelerate() {
-		deltaSum += Time.deltaTime;
-
-		if (thrustSpeed > 0 && deltaSum >= deltaAccInterval) {
-			thrustSpeed -= thrustAcceleration * Mathf.Round(deltaSum / deltaAccInterval);
-		}
-
-		if (deltaSum >= deltaAccInterval) {
-			deltaSum = 0;
-		}
-
-		debugText.text = $"Thrust Force:{(thrustSpeed)}\nTime.Delta:{Time.deltaTime}";
-	}
-
-	private void Accelerate() {
-
-		deltaSum += Time.deltaTime;
-
-		if (thrustSpeed < maxThrustSpeed && deltaSum >= deltaAccInterval) {
-			thrustSpeed += thrustAcceleration * Mathf.Round(deltaSum / deltaAccInterval);
-		}
-
-		if (deltaSum >= deltaAccInterval) {
-			deltaSum = 0;
-		}
-		debugText.text = $"Thrust Force:{(thrustSpeed)}\nTime.Delta:{Time.deltaTime}";
-
-
-	}
-
-	private void EngineShutoff() {
-
-		deltaSum += Time.deltaTime;
-
-		if (thrustSpeed > 0 && deltaSum >= deltaShutoffInterval) {
-			thrustSpeed -= thrustAcceleration * Mathf.Round(deltaSum / deltaShutoffInterval);
-		}
-
-		if (deltaSum >= deltaShutoffInterval) {
-			deltaSum = 0;
-		}
-
-		debugText.text = $"Thrust Force:{(thrustSpeed)}\nTime.Delta:{Time.deltaTime}";
-	}
-
 	private void Thrust() {
 		
-		if (Input.GetKey(KeyCode.Space)) {
-			
-			if (Input.GetKey(KeyCode.Q)) {
-				Decelerate();
+		if (Input.GetKey(KeyCode.Space)) {			
+
+			_rigidBody.AddRelativeForce(Time.deltaTime * (thrustForce) * Vector3.up);
+			if (_audioSource.isPlaying == false) {
+				_audioSource.PlayOneShot(mainEngineAudio);
 			}
-
-			if (Input.GetKey(KeyCode.E)) {
-				Accelerate();
-			}
-
-			debugText.text = $"Thrust Force:{(thrustSpeed)}\nTime.Delta:{Time.deltaTime}";
-
-			if(fixedThrust > 0) {
-				_rigidBody.AddRelativeForce(Time.deltaTime * (fixedThrust) * Vector3.up);
-				if (_audioSource.isPlaying == false) {
-					_audioSource.Play();
-				}
-			} else {
-				_rigidBody.AddRelativeForce(Time.deltaTime * (thrustSpeed) * Vector3.up);
-
-				if (_audioSource.isPlaying == false && thrustSpeed > 0) {
-					_audioSource.Play();
-				}
-
-				if (_audioSource.isPlaying && thrustSpeed == 0) {
-					_audioSource.Stop();
-				}
-			}
-			
-
-
+						
 		} else {
 			if (_audioSource.isPlaying) {
 				_audioSource.Stop();
 			}
-			EngineShutoff();
 			
 		}
 
-
 	}
+
 }
