@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class MainCamera : MonoBehaviour {
 
+	[SerializeField]
+	float cameraZpos = -15f;
+
 	GameObject _player;
 
 	// Start is called before the first frame update
@@ -13,6 +16,6 @@ public class MainCamera : MonoBehaviour {
 
 	// Update is called once per frame
 	void Update() {
-		transform.position = new Vector3(_player.transform.position.x, _player.transform.position.y, -18);
+		transform.position = new Vector3(_player.transform.position.x, _player.transform.position.y, cameraZpos);
 	}
 }

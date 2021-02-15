@@ -14,39 +14,37 @@ public class Rocket : MonoBehaviour {
 
 	Rigidbody _rigidBody;
 	AudioSource _audioSource;
-	[SerializeField] float rotationForce = 150f;
-	[SerializeField] float thrustForce = 800f;
-	[SerializeField] AudioClip mainEngineAudio;
-	[SerializeField] AudioClip deathAudio;
-	[SerializeField] AudioClip winAudio;	
+	[SerializeField] float _rotationForce = 150f;
+	[SerializeField] float _thrustForce = 800f;
+	[SerializeField] AudioClip _mainEngineAudio;
+	[SerializeField] AudioClip _deathAudio;
+	[SerializeField] AudioClip _winAudio;	
 	
-	[SerializeField] ParticleSystem mainEngineParticle;
-	[SerializeField] ParticleSystem deathParticle;
-	[SerializeField] ParticleSystem winParticle;
-
+	[SerializeField] ParticleSystem _mainEngineParticle;
+	[SerializeField] ParticleSystem _deathParticle;
+	[SerializeField] ParticleSystem _winParticle;
 	
+	[SerializeField] float _nextLevelDelay = 2f;
 
-	[SerializeField] float nextLevelDelay = 1f;
-	PlayerState playerState = PlayerState.Alive;
+	PlayerState _playerState = PlayerState.Alive;
 
-	float deltaAccInterval = 0.05f;
-	float deltaShutoffInterval = 0.01f;
+	[SerializeField] Light _leftLight;
+	[SerializeField] Light _rightLight;
+	[SerializeField] bool _lightsOn;
+	
+	Text _debugText;
 
-	float thrustSpeed = 0f;
-	Text debugText;
-	float deltaSum;
 
 	// Start is called before the first frame update
 	void Start() {
 		_rigidBody = GetComponent<Rigidbody>();
 		_audioSource = GetComponent<AudioSource>();
-		debugText = GameObject.FindGameObjectWithTag("DebugText").GetComponent<Text>();
-		
+		_debugText = GameObject.FindGameObjectWithTag("DebugText").GetComponent<Text>();								
 	}
 
 	private void OnCollisionEnter(Collision collision) {
 
-		if (playerState != PlayerState.Alive) return;
+		if (_playerState != PlayerState.Alive) return;
 
 		switch (collision.gameObject.tag) {
 
@@ -54,16 +52,18 @@ public class Rocket : MonoBehaviour {
 				//doNothing				
 				break;
 			case "Finish":
-				playerState = PlayerState.Transcending;
+				_playerState = PlayerState.Transcending;
 				_audioSource.Stop();
-   				_audioSource.PlayOneShot(winAudio);
-				Invoke(nameof(LoadNextScene), nextLevelDelay);				
+   				_audioSource.PlayOneShot(_winAudio);
+				_winParticle.Play();
+				Invoke(nameof(LoadNextScene), _nextLevelDelay);				
 				break;
 			default:
-				playerState = PlayerState.Dying;				
+				_playerState = PlayerState.Dying;
+				_deathParticle.Play();
 				_audioSource.Stop();
-  				_audioSource.PlayOneShot(deathAudio);
-				Invoke(nameof(LoadFirstScene), nextLevelDelay);
+  				_audioSource.PlayOneShot(_deathAudio);
+				Invoke(nameof(LoadFirstScene), _nextLevelDelay);
 				break;
 		}
 	}
@@ -71,11 +71,20 @@ public class Rocket : MonoBehaviour {
 	// Update is called once per frame
 	void Update() {
 
-		if(playerState == PlayerState.Alive) {
+		if(_playerState == PlayerState.Alive) {
 			Thrust();
 			Rotate();
 		}
 
+		if(_lightsOn && _rightLight.enabled == false && _leftLight.enabled == false) {
+			_rightLight.enabled = _lightsOn;
+			_leftLight.enabled = _lightsOn;
+		}
+
+		if(_lightsOn == false && _rightLight.enabled && _leftLight.enabled) {
+			_rightLight.enabled = _lightsOn;
+			_leftLight.enabled = _lightsOn;
+		}
 		
 	}
 
@@ -90,12 +99,12 @@ public class Rocket : MonoBehaviour {
 	private void Rotate() {
 
 		if (Input.GetKey(KeyCode.A)) {
-			transform.Rotate(Time.deltaTime * rotationForce * Vector3.forward);
+			transform.Rotate(Time.deltaTime * _rotationForce * Vector3.forward);
 			_rigidBody.angularVelocity = Vector3.zero;
 		}
 
 		if (Input.GetKey(KeyCode.D)) {
-			transform.Rotate(Time.deltaTime * rotationForce * -Vector3.forward);
+			transform.Rotate(Time.deltaTime * _rotationForce * -Vector3.forward);
 			_rigidBody.angularVelocity = Vector3.zero;
 		}
 		
@@ -104,17 +113,24 @@ public class Rocket : MonoBehaviour {
 	private void Thrust() {
 		
 		if (Input.GetKey(KeyCode.Space)) {			
+			_rigidBody.AddRelativeForce(Time.deltaTime * (_thrustForce) * Vector3.up);
+ 			if (_audioSource.isPlaying == false) {
+				_audioSource.PlayOneShot(_mainEngineAudio);
+			}
 
-			_rigidBody.AddRelativeForce(Time.deltaTime * (thrustForce) * Vector3.up);
-			if (_audioSource.isPlaying == false) {
-				_audioSource.PlayOneShot(mainEngineAudio);
+			if(_mainEngineParticle.isEmitting == false) {
+				_mainEngineParticle.Play();
 			}
 						
 		} else {
 			if (_audioSource.isPlaying) {
 				_audioSource.Stop();
 			}
-			
+
+			if(_mainEngineParticle.isEmitting) {
+				_mainEngineParticle.Stop();
+			}
+
 		}
 
 	}
