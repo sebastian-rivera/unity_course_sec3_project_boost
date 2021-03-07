@@ -30,21 +30,23 @@ public class Rocket : MonoBehaviour {
 
 	[SerializeField] Light _leftLight;
 	[SerializeField] Light _rightLight;
-	[SerializeField] bool _lightsOn;
+	bool _lightsOn = true;
 	
 	Text _debugText;
+	bool _debugMode;
 
 
 	// Start is called before the first frame update
 	void Start() {
 		_rigidBody = GetComponent<Rigidbody>();
 		_audioSource = GetComponent<AudioSource>();
-		_debugText = GameObject.FindGameObjectWithTag("DebugText").GetComponent<Text>();								
+		_debugText = GameObject.FindGameObjectWithTag("DebugText").GetComponent<Text>();	
+		_debugText.text = $"Debug Mode: {_debugMode}";
 	}
 
 	private void OnCollisionEnter(Collision collision) {
 
-		if (_playerState != PlayerState.Alive) return;
+		if (_playerState != PlayerState.Alive || _debugMode) return;
 
 		switch (collision.gameObject.tag) {
 
@@ -63,7 +65,7 @@ public class Rocket : MonoBehaviour {
 				_deathParticle.Play();
 				_audioSource.Stop();
   				_audioSource.PlayOneShot(_deathAudio);
-				Invoke(nameof(LoadFirstScene), _nextLevelDelay);
+				Invoke(nameof(LoadCurrentScene), _nextLevelDelay);
 				break;
 		}
 	}
@@ -74,26 +76,48 @@ public class Rocket : MonoBehaviour {
 		if(_playerState == PlayerState.Alive) {
 			Thrust();
 			Rotate();
+			ToggleLight();
+			ToggleDebugMode();
+			NextLevel();
 		}
 
-		if(_lightsOn && _rightLight.enabled == false && _leftLight.enabled == false) {
-			_rightLight.enabled = _lightsOn;
-			_leftLight.enabled = _lightsOn;
-		}
-
-		if(_lightsOn == false && _rightLight.enabled && _leftLight.enabled) {
-			_rightLight.enabled = _lightsOn;
-			_leftLight.enabled = _lightsOn;
-		}
 		
 	}
 
-	private void LoadFirstScene() {
-		SceneManager.LoadScene(0);
+	private void ToggleLight() {
+		if(Input.GetKeyUp(KeyCode.F)) {
+			_lightsOn = !_lightsOn;
+			_rightLight.enabled = _lightsOn;
+			_leftLight.enabled = _lightsOn;
+		}		
+	}
+
+	private void ToggleDebugMode() {
+		if(Input.GetKeyUp(KeyCode.X)) {
+			_debugMode = !_debugMode;
+
+			_debugText.text = $"Debug Mode: {_debugMode}";
+
+		}
+	}
+
+	private void NextLevel() {
+		if(Input.GetKeyUp(KeyCode.L)) {
+			LoadNextScene();
+		}
+	}
+
+	private void LoadCurrentScene() {
+		SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
 	}
 
 	private void LoadNextScene() {
-		SceneManager.LoadScene(1);
+		if(SceneManager.GetActiveScene().buildIndex == SceneManager.sceneCountInBuildSettings -1) {
+			SceneManager.LoadScene(0);
+		} else {
+			SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+		}
+		
 	}
 
 	private void Rotate() {
